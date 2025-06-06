@@ -20,7 +20,15 @@ class ErrorCacheTileLoader(TileLoader):
 
             def on_result(img: ImageOrException, z: int, x: int, y: int) -> None:
                 if isinstance(img, Exception):
+                    print(
+                        f"{type(self).__name__}: Tile {z}/{x}/{y} failed to load: {img}"
+                    )
                     self._errored_tiles.add(key)
                 callback(img, z, x, y)
 
             self._next_loader.get_tile_async(z, x, y, on_result)
+
+    def clear(self) -> None:
+        """Clear the error cache."""
+        print(f"{type(self).__name__}: Clearing error cache.")
+        self._errored_tiles.clear()

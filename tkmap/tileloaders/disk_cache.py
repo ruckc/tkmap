@@ -14,6 +14,18 @@ class DiskCacheTileLoader(ChainedTileLoader):
         super().__init__(next_loader)
         self.cache_dir = cache_dir
 
+    @property
+    def cache_dir(self) -> Path:
+        """Get the directory where tiles are cached."""
+        return self._cache_dir
+
+    @cache_dir.setter
+    def cache_dir(self, cache_dir: Path) -> None:
+        """Set the directory where tiles will be cached."""
+        self._cache_dir = cache_dir
+        self._cache_dir.mkdir(parents=True, exist_ok=True)
+        print(f"{type(self).__name__}: Cache directory set to {self._cache_dir}")
+
     def _get_tile_path(self, z: int, x: int, y: int) -> Path:
         return self.cache_dir / str(z) / str(x) / f"{y}.png"
 
@@ -43,4 +55,4 @@ class DiskCacheTileLoader(ChainedTileLoader):
         try:
             img.save(tile_path, format="PNG")
         except Exception as e:
-            print(f"Failed to save tile {z}/{x}/{y}: {e}")
+            print(f"{type(self).__name__}: Failed to save tile {z}/{x}/{y}: {e}")

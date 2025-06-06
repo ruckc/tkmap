@@ -1,15 +1,18 @@
 import math
 import sys
 import tkinter as tk
+from pathlib import Path
 from typing import Any, Optional
 
+import requests
 from PIL.ImageTk import PhotoImage
+from platformdirs import user_cache_dir
 
 from tkmap.model import Dimensions, LonLat, ScreenPoint
 from tkmap.tileloaders.base import ImageOrException
 
 from .events import MapWidgetEventManager, MouseMovedEvent
-from .tileloaders import DefaultTileLoader
+from .tileloaders import DefaultTileLoader, TileLoader
 from .viewport import Viewport
 
 
@@ -22,10 +25,15 @@ class MapWidget(tk.Canvas):
         center: LonLat = LonLat(0, 0),
         zoom: int = 1,
         tile_size: int = 256,
+        tile_loader: Optional[TileLoader] = None,
         **kwargs: Any,
     ):
         super().__init__(parent, **kwargs)
-        self._tile_loader = DefaultTileLoader()
+        self._tile_loader = tile_loader or DefaultTileLoader(
+            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            base_cache_dir=Path(user_cache_dir("tkmap")) / "tile_cache",
+            requests_session=requests.Session(),
+        )
         self._event_manager = MapWidgetEventManager()
         self._tile_size = tile_size
         self._viewport = Viewport(
@@ -33,7 +41,7 @@ class MapWidget(tk.Canvas):
             1,
             Dimensions(800, 600),
             self._tile_size,
-            self._redraw,
+            self.redraw,
             self._event_manager,
         )
         self._tile_images = {}  # Keep references to PhotoImage objects
@@ -48,6 +56,10 @@ class MapWidget(tk.Canvas):
         )
 
         self._drag_start: Optional[ScreenPoint] = None
+
+        self._tile_loader.start_remote_fetch_queue_processing(
+            self.winfo_toplevel(), interval_ms=100
+        )
 
     def _setup_event_bindings(self) -> None:
         # zoom
@@ -133,8 +145,13 @@ class MapWidget(tk.Canvas):
         elif event.num == 5:
             self._viewport.zoom_out()
 
-    def _redraw(self) -> None:
+    def redraw(self, flush: bool = False) -> None:
         """Redraw the map tiles based on the current viewport."""
+        if flush:
+            # Clear the canvas if flush is True
+            self._tile_images.clear()
+            self.delete("all")
+
         # Get the visible tiles from the viewport once, so they aren't computed multiple
         # times
         tiles = self._viewport.visible_area.tiles

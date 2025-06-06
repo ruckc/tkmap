@@ -43,3 +43,8 @@ class MemoryCacheTileLoader(ChainedTileLoader):
             callback(img, z, x, y)
         else:
             callback(None, z, x, y)
+
+    def clear(self) -> None:
+        """Clear the memory cache."""
+        print(f"{type(self).__name__}: Clearing memory cache.")
+        self._lru_cache.clear()

@@ -58,7 +58,7 @@ class AsyncThreadWorker:
         except queue.Empty:
             pass
 
-    def start_processing(self, root: tk.Tk, interval_ms: int):
+    def start_processing(self, root: tk.Tk | tk.Toplevel, interval_ms: int):
         if not self._processing_started:
             self._processing_started = True
             self._main_thread_callback = lambda cb, res: root.after(0, cb, res)
