@@ -1,4 +1,5 @@
 # Demo app for tkmap
+import logging
 import signal
 import tkinter as tk
 from pathlib import Path
@@ -11,6 +12,13 @@ from tkmap.tileloaders.default import DefaultTileLoader
 
 
 def main():
+    # Configure logging for trace level
+    logging.basicConfig(
+        level=logging.DEBUG,  # Custom TRACE level
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    logging.getLogger("PIL").setLevel(logging.INFO)  # Reduce PIL logging noise
+
     tile_loader = DefaultTileLoader(
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         base_cache_dir=Path(user_cache_dir("tkmap")) / "tilecache",
@@ -78,7 +86,7 @@ def main():
     # Start the remote fetch queue processing and ties it to the tkinter main loop
     # The interval_ms controls how often the queue is processed
     tile_loader.start_remote_fetch_queue_processing(
-        root.winfo_toplevel(), interval_ms=100
+        root.winfo_toplevel(), interval_ms=40
     )
     root.mainloop()
 

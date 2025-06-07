@@ -1,19 +1,30 @@
+import logging
 import tkinter as tk
+from typing import Any
+
+from PIL import ImageTk
+
+from tkmap.tileloaders.base import ImageOrException
 
 from .layer import Layer
+
+logger = logging.getLogger(__name__)
 
 
 class TileLayer(Layer):
     def __init__(
-        self, tile_loader, tile_size, photo_image_cls, name="BaseMap", visible=True
-    ):
+        self,
+        tile_loader: Any,
+        tile_size: int,
+        name: str = "BaseMap",
+        visible: bool = True,
+    ) -> None:
         super().__init__(visible, name)
-        self.tile_loader = tile_loader
-        self.tile_size = tile_size
-        self.photo_image_cls = photo_image_cls
-        self._tile_images = {}
+        self.tile_loader: Any = tile_loader
+        self.tile_size: int = tile_size
+        self._tile_images: dict[tuple[int, int, int], ImageTk.PhotoImage] = {}
 
-    def draw(self, canvas, viewport):
+    def draw(self, canvas: tk.Canvas, viewport: Any) -> None:
         if not self.visible:
             return
         tiles = viewport.visible_area.tiles
@@ -25,15 +36,18 @@ class TileLayer(Layer):
         tile_size = self.tile_size
         n = 2**zoom
         world_px_width = tile_size * n
+        canvas_width = canvas.winfo_width()
         for tile in tiles:
 
-            def draw_image(img, z, x, y, tile=tile):
+            def draw_image(
+                img: ImageOrException, z: int, x: int, y: int, tile=tile
+            ) -> None:
                 if img is not None and not isinstance(img, Exception):
-                    photo = self.photo_image_cls(img)
+                    photo = ImageTk.PhotoImage(img)
                     self._tile_images[(z, x, y)] = photo
                     for offset in range(-1, 2):
                         sx = tile.screen.x + offset * world_px_width
-                        if sx + tile_size > 0 and sx < canvas.winfo_width():
+                        if sx + tile_size > 0 and sx < canvas_width:
                             canvas.create_image(
                                 sx,
                                 tile.screen.y,

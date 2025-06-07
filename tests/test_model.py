@@ -1,5 +1,4 @@
 import itertools
-import math
 
 import pytest
 
@@ -12,9 +11,8 @@ from tkmap.model import (
     TileInstance,
     VisbileMapArea,
     VisibleTile,
-    lonlat_to_pixel,
-    pixel_to_tile,
 )
+from tkmap.projection import Projection
 
 
 def test_lonlat_properties():
@@ -46,10 +44,10 @@ def test_tilecoord_properties():
     tc = TileCoord(z=3, xf=4.7, yf=5.2)
     assert tc.x == 4
     assert tc.y == 5
-    # Check lon/lat are floats and within expected ranges
-    assert isinstance(tc.lon, float)
-    assert isinstance(tc.lat, float)
-    # __repr__ includes all fields
+    projection = Projection()
+    ll = tc.to_lonlat(projection)
+    assert isinstance(ll.lon, float)
+    assert isinstance(ll.lat, float)
     s = repr(tc)
     assert "TileCoord" in s and "xf=4.7" in s and "yf=5.2" in s
 
@@ -85,11 +83,14 @@ def test_visibletile_dataclass():
 
 def test_lonlat_to_pixel_and_to_tile():
     ll = LonLat(lon=0, lat=0)
-    sp = ll.to_pixel(zoom=2, tile_size=256)
+    projection = Projection()
+    sp = ScreenPoint(
+        *map(int, projection.lonlat_to_pixel(ll.lon, ll.lat, zoom=2, tile_size=256))
+    )
     assert isinstance(sp, ScreenPoint)
-    tile = ll.to_tile(zoom=2, tile_size=256)
+    xf, yf = projection.lonlat_to_tile(ll.lon, ll.lat, zoom=2, tile_size=256)
+    tile = TileCoord(z=2, xf=xf, yf=yf)
     assert isinstance(tile, TileCoord)
-    # Check that to_tile returns expected z
     assert tile.z == 2
 
 
@@ -101,39 +102,30 @@ def test_dimensions_dataclass():
 def test_visiblemaparea_dataclass():
     ll1 = LonLat(0, 0)
     ll2 = LonLat(10, 10)
-    vma = VisbileMapArea(top_left=ll1, bottom_right=ll2, zoom=5)
+    projection = Projection()
+    vma = VisbileMapArea(top_left=ll1, bottom_right=ll2, zoom=5, projection=projection)
     assert vma.top_left == ll1
     assert vma.bottom_right == ll2
     assert vma.zoom == 5
 
 
 def test_lonlat_to_pixel_function():
-    # Equator and prime meridian
     ll = LonLat(0, 0)
-    sp = lonlat_to_pixel(ll, zoom=2, tile_size=256)
+    projection = Projection()
+    sp = ScreenPoint(
+        *map(int, projection.lonlat_to_pixel(ll.lon, ll.lat, zoom=2, tile_size=256))
+    )
     assert isinstance(sp, ScreenPoint)
-    # North pole
     ll_north = LonLat(0, 90)
-    sp_north = lonlat_to_pixel(ll_north, 2)
-    assert sp_north.y == 0
-    # South pole
+    sp_north = ScreenPoint(
+        *map(int, projection.lonlat_to_pixel(ll_north.lon, ll_north.lat, 2))
+    )
+    assert sp_north.y <= 0  # North pole is above the map in Web Mercator
     ll_south = LonLat(0, -90)
-    sp_south = lonlat_to_pixel(ll_south, 2)
+    sp_south = ScreenPoint(
+        *map(int, projection.lonlat_to_pixel(ll_south.lon, ll_south.lat, 2))
+    )
     assert sp_south.y > 0
-
-
-def test_pixel_to_tile_function():
-    sp = ScreenPoint(512, 768)
-    tile = pixel_to_tile(sp, zoom=3, tile_size=256)
-    assert isinstance(tile, TileCoord)
-    assert tile.z == 3
-    assert math.isclose(tile.xf, 2.0)
-    assert math.isclose(tile.yf, 3.0)
-
-
-def lon_equiv(a, b, tol):
-    """Check if two longitudes are equivalent within a tolerance."""
-    return (a - b) % 360 < tol or (b - a) % 360 < tol
 
 
 @pytest.mark.parametrize(
@@ -151,12 +143,22 @@ def test_exhaustive_roundtrip_test_from_lonlat_to_tile_and_back(zoom, lon, lat):
     tile_size = 256
     lon_per_pixel = 360.0 / (n * tile_size)
     lat_per_pixel = 180.0 / (n * tile_size)
-    tolerance_lon = lon_per_pixel * 2  # 2 pixels
-    tolerance_lat = lat_per_pixel * 2  # 2 pixels
+    tolerance_lon = lon_per_pixel * 2
+    tolerance_lat = lat_per_pixel * 2
     ll = LonLat(lon=lon, lat=lat)
-    sp = ll.to_pixel(zoom=zoom, tile_size=tile_size)
-    tile = pixel_to_tile(sp, zoom=zoom, tile_size=tile_size)
-    ll_roundtrip = tile.lonlat
+    projection = Projection()
+    sp = ScreenPoint(
+        *map(
+            int,
+            projection.lonlat_to_pixel(ll.lon, ll.lat, zoom=zoom, tile_size=tile_size),
+        )
+    )
+    tile = TileCoord(z=zoom, xf=sp.x / tile_size, yf=sp.y / tile_size)
+    ll_roundtrip = tile.to_lonlat(projection, tile_size)
+
+    def lon_equiv(a, b, tol):
+        return (a - b) % 360 < tol or (b - a) % 360 < tol
+
     assert lon_equiv(ll.lon, ll_roundtrip.lon, tolerance_lon), (
         f"Failed lon check for zoom={zoom}, lon={lon}, lat={lat} "
         f"with roundtrip {ll_roundtrip} with tolerance {tolerance_lon}"

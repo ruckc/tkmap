@@ -5,10 +5,10 @@ from pathlib import Path
 from typing import Any, Optional
 
 import requests
-from PIL.ImageTk import PhotoImage
 from platformdirs import user_cache_dir
 
 from tkmap.model import Dimensions, LonLat, ScreenPoint
+from tkmap.projection import Projection
 
 from .events import MapWidgetEventManager, MouseMovedEvent
 from .layers import GroupLayer, Layer, TileLayer
@@ -26,6 +26,7 @@ class MapWidget(tk.Canvas):
         zoom: int = 1,
         tile_size: int = 256,
         tile_loader: Optional[TileLoader] = None,
+        projection: str = "EPSG:3857",
         **kwargs: Any,
     ):
         super().__init__(parent, **kwargs)
@@ -36,6 +37,7 @@ class MapWidget(tk.Canvas):
         )
         self._event_manager = MapWidgetEventManager()
         self._tile_size = tile_size
+        self._projection = Projection(projection)
         self._viewport = Viewport(
             LonLat(0, 0),
             1,
@@ -43,6 +45,7 @@ class MapWidget(tk.Canvas):
             self._tile_size,
             self.redraw,
             self._event_manager,
+            self._projection,
         )
         self._root_layer = GroupLayer(name="Root")
         self._setup_layers()
@@ -57,28 +60,18 @@ class MapWidget(tk.Canvas):
 
         self._drag_start: Optional[ScreenPoint] = None
 
+    @property
+    def root_layer(self) -> Layer:
+        """Get the root layer of the map."""
+        return self._root_layer
+
     def _setup_layers(self):
         base_layer = TileLayer(
             tile_loader=self._tile_loader,
             tile_size=self._tile_size,
-            photo_image_cls=PhotoImage,
             name="BaseMap",
         )
         self._root_layer.add_layer(base_layer)
-
-    def add_layer(self, layer: Layer):
-        self._root_layer.add_layer(layer)
-
-    def remove_layer(self, name: str):
-        self._root_layer.remove_layer(name)
-
-    def show_layer(self, name: str):
-        self._root_layer.show_layer(name)
-        self.redraw(flush=True)
-
-    def hide_layer(self, name: str):
-        self._root_layer.hide_layer(name)
-        self.redraw(flush=True)
 
     def _setup_event_bindings(self) -> None:
         # zoom
@@ -110,20 +103,18 @@ class MapWidget(tk.Canvas):
         else:
             dx = event.x - self._drag_start.x
             dy = event.y - self._drag_start.y
-            # Convert center to pixel coordinates
+            # Convert center to projected coordinates
             center = self._viewport.center
             zoom = self._viewport.zoom
-            tile_size = self._tile_size
-            center_px = center.to_pixel(zoom, tile_size)
+            center_x, center_y = self._projection.to_projected(center.lon, center.lat)
+            # Calculate scale (meters per pixel)
+            initial_resolution = 2 * math.pi * 6378137 / self._tile_size
+            resolution = initial_resolution / (2**zoom)
             # Subtract drag delta
-            new_center_px = ScreenPoint(center_px.x - dx, center_px.y - dy)
+            new_center_x = center_x - dx * resolution
+            new_center_y = center_y + dy * resolution
             # Convert back to lon/lat
-
-            n = 2.0**zoom
-            lon = (new_center_px.x / (tile_size * n)) * 360.0 - 180.0
-            y = new_center_px.y / (tile_size * n)
-            lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * y)))
-            lat = math.degrees(lat_rad)
+            lon, lat = self._projection.from_projected(new_center_x, new_center_y)
             new_center = LonLat(lon, lat)
             self._viewport.update(center=new_center)
             self._drag_start = ScreenPoint(event.x, event.y)
@@ -143,8 +134,6 @@ class MapWidget(tk.Canvas):
 
     def _mouse_moved(self, event: tk.Event) -> None:
         """Handle mouse movement events."""
-        # Convert screen coordinates to lon/lat using viewport math
-
         sp = ScreenPoint(event.x, event.y)
         self._event_manager.trigger_mouse_moved(
             MouseMovedEvent(screen=sp, lonlat=self._viewport.screen_to_lonlat(sp))
