@@ -9,9 +9,9 @@ from PIL.ImageTk import PhotoImage
 from platformdirs import user_cache_dir
 
 from tkmap.model import Dimensions, LonLat, ScreenPoint
-from tkmap.tileloaders.base import ImageOrException
 
 from .events import MapWidgetEventManager, MouseMovedEvent
+from .layers import GroupLayer, Layer, TileLayer
 from .tileloaders import DefaultTileLoader, TileLoader
 from .viewport import Viewport
 
@@ -44,8 +44,8 @@ class MapWidget(tk.Canvas):
             self.redraw,
             self._event_manager,
         )
-        self._tile_images = {}  # Keep references to PhotoImage objects
-
+        self._root_layer = GroupLayer(name="Root")
+        self._setup_layers()
         self._setup_event_bindings()
         self._setup_method_bindings()
 
@@ -57,9 +57,28 @@ class MapWidget(tk.Canvas):
 
         self._drag_start: Optional[ScreenPoint] = None
 
-        self._tile_loader.start_remote_fetch_queue_processing(
-            self.winfo_toplevel(), interval_ms=100
+    def _setup_layers(self):
+        base_layer = TileLayer(
+            tile_loader=self._tile_loader,
+            tile_size=self._tile_size,
+            photo_image_cls=PhotoImage,
+            name="BaseMap",
         )
+        self._root_layer.add_layer(base_layer)
+
+    def add_layer(self, layer: Layer):
+        self._root_layer.add_layer(layer)
+
+    def remove_layer(self, name: str):
+        self._root_layer.remove_layer(name)
+
+    def show_layer(self, name: str):
+        self._root_layer.show_layer(name)
+        self.redraw(flush=True)
+
+    def hide_layer(self, name: str):
+        self._root_layer.hide_layer(name)
+        self.redraw(flush=True)
 
     def _setup_event_bindings(self) -> None:
         # zoom
@@ -146,41 +165,7 @@ class MapWidget(tk.Canvas):
             self._viewport.zoom_out()
 
     def redraw(self, flush: bool = False) -> None:
-        """Redraw the map tiles based on the current viewport."""
+        """Redraw all visible layers."""
         if flush:
-            # Clear the canvas if flush is True
-            self._tile_images.clear()
             self.delete("all")
-
-        # Get the visible tiles from the viewport once, so they aren't computed multiple
-        # times
-        tiles = self._viewport.visible_area.tiles
-
-        visible_keys = {(tile.z, tile.x, tile.y) for tile in tiles}
-
-        # recreate the tile images dictionary to only include visible tiles
-        # This is to avoid memory leaks and keep the widget responsive
-        self._tile_images = {
-            k: v for k, v in self._tile_images.items() if k in visible_keys
-        }
-        zoom = self._viewport.zoom
-        tile_size = self._tile_size
-        n = 2**zoom
-        world_px_width = tile_size * n
-        for tile in tiles:
-
-            def draw_image(img: ImageOrException, z: int, x: int, y: int, tile=tile):
-                if img is not None and not isinstance(img, Exception):
-                    photo = PhotoImage(img)
-                    self._tile_images[(z, x, y)] = photo
-                    for offset in range(-1, 2):
-                        sx = tile.screen.x + offset * world_px_width
-                        if sx + tile_size > 0 and sx < self.winfo_width():
-                            self.create_image(
-                                sx,
-                                tile.screen.y,
-                                image=photo,
-                                anchor=tk.NW,
-                            )
-
-            self._tile_loader.get_tile_async(tile.z, tile.x, tile.y, draw_image)
+        self._root_layer.draw(self, self._viewport)

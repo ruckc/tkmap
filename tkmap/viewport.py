@@ -25,6 +25,16 @@ class Viewport:
         self._event_manager = event_manager
 
     @property
+    def width(self) -> int:
+        """Get the width of the viewport window."""
+        return self.window_size.width
+
+    @property
+    def height(self) -> int:
+        """Get the height of the viewport window."""
+        return self.window_size.height
+
+    @property
     def center(self) -> LonLat:
         """Get the center of the viewport."""
         return self._center
