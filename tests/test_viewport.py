@@ -1,3 +1,4 @@
+# ruff: noqa: D100,D101,D102,D103,D107,S101,PLR2004,PLR0915
 import math
 from unittest.mock import MagicMock
 
@@ -7,7 +8,7 @@ from tkmap.model import Dimensions, LonLat, VisbileMapArea
 from tkmap.viewport import Viewport
 
 
-def test_viewport_init_and_properties():
+def test_viewport_init_and_properties() -> None:
     center = LonLat(10, 20)
     zoom = 5
     window_size = Dimensions(800, 600)
@@ -17,7 +18,7 @@ def test_viewport_init_and_properties():
     assert vp.window_size == window_size
 
 
-def test_viewport_setters():
+def test_viewport_setters() -> None:
     center = LonLat(0, 0)
     window_size = Dimensions(400, 300)
     vp = Viewport(center, 2, window_size)
@@ -31,7 +32,7 @@ def test_viewport_setters():
     assert vp.window_size == new_size
 
 
-def test_viewport_zoom_in_out():
+def test_viewport_zoom_in_out() -> None:
     vp = Viewport(LonLat(0, 0), 10, Dimensions(100, 100))
     vp.zoom_in()
     assert vp.zoom == 11
@@ -42,7 +43,7 @@ def test_viewport_zoom_in_out():
     assert vp.zoom == 3
 
 
-def test_viewport_visible_area():
+def test_viewport_visible_area() -> None:
     center = LonLat(0, 0)
     window_size = Dimensions(256, 256)
     vp = Viewport(center, 0, window_size)
@@ -54,12 +55,12 @@ def test_viewport_visible_area():
     assert area.bottom_right.lat < center.lat < area.top_left.lat
 
 
-def test_viewport_update_triggers_redraw_and_event():
+def test_viewport_update_triggers_redraw_and_event() -> None:
     center = LonLat(0, 0)
     window_size = Dimensions(100, 100)
     redraw_called = {}
 
-    def redraw():
+    def redraw() -> None:
         redraw_called["called"] = True
 
     event_manager = MagicMock()
@@ -67,11 +68,13 @@ def test_viewport_update_triggers_redraw_and_event():
     vp.update(center=LonLat(1, 1), zoom=2, window_size=Dimensions(200, 200))
     assert redraw_called.get("called")
     event_manager.trigger_viewport_change.assert_called_once_with(
-        center=LonLat(1, 1), zoom=2, screen=Dimensions(200, 200)
+        center=LonLat(1, 1),
+        zoom=2,
+        screen=Dimensions(200, 200),
     )
 
 
-def test_viewport_zoom_clamping():
+def test_viewport_zoom_clamping() -> None:
     vp = Viewport(LonLat(0, 0), 10, Dimensions(100, 100))
     vp.zoom = -5
     assert vp.zoom == 0
@@ -79,14 +82,14 @@ def test_viewport_zoom_clamping():
     assert vp.zoom == 19
 
 
-def test_visible_area_web_mercator_math():
-    def pixel_y_to_lat(pixel_y, zoom, tile_size=256):
+def test_visible_area_web_mercator_math() -> None:
+    def pixel_y_to_lat(pixel_y: float, zoom: int, tile_size: int = 256) -> float:
         n = 2**zoom
         y = pixel_y / (tile_size * n)
         lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * y)))
         return math.degrees(lat_rad)
 
-    def pixel_x_to_lon(pixel_x, zoom, tile_size=256):
+    def pixel_x_to_lon(pixel_x: float, zoom: int, tile_size: int = 256) -> float:
         n = 2**zoom
         return (pixel_x / (tile_size * n)) * 360.0 - 180.0
 

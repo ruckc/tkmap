@@ -25,5 +25,5 @@ pytest-xdist = "^3.7.0"
 platformdirs = "^4.3.8"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "C", "Q", "I"]
-ignore = ["W293"]
+select = ["E", "F", "W", "C", "Q", "I","YTT","ANN","ASYNC","S","BLE","FBT","B","A","COM","C4","EM","EXE","FIX","FA","ISC","ICN","LOG","G","INP","PIE","T20","PYI","PT","RSE","RET","SLF","SIM","SLOT","TID","TD","TC","ARG","PTH","FLY","C90","NPY","PD","N","PERF","D","PGH","PL","PLE","PLR","PLW","UP","FURB","RUF","TRY"]
+ignore = ["W293", "D211","D213","COM812","D203"]

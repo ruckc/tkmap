@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: poetry install
 
+      - name: Lint/format check
+        run: poetry run ruff check && poetry run ruff format --check
+
       - name: Build package
         run: poetry build
 

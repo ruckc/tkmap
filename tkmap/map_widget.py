@@ -1,8 +1,10 @@
+"""MapWidget for tkmap: interactive Tkinter map widget with tile and event support."""
+
 import math
 import sys
 import tkinter as tk
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import requests
 from PIL.ImageTk import PhotoImage
@@ -15,19 +17,34 @@ from .layers import GroupLayer, Layer, TileLayer
 from .tileloaders import DefaultTileLoader, TileLoader
 from .viewport import Viewport
 
+DEFAULT_CENTER = LonLat(0, 0)
+MOUSEWHEEL_UP = 4
+MOUSEWHEEL_DOWN = 5
+
 
 class MapWidget(tk.Canvas):
     """A Tkinter widget for displaying a map with tiles."""
 
     def __init__(
         self,
-        parent: tk.Misc,
-        center: LonLat = LonLat(0, 0),
+        parent: tk.Misc | tk.Frame | tk.Tk,
+        center: LonLat = DEFAULT_CENTER,
         zoom: int = 1,
         tile_size: int = 256,
-        tile_loader: Optional[TileLoader] = None,
-        **kwargs: Any,
-    ):
+        tile_loader: TileLoader | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> None:
+        """Initialize the MapWidget.
+
+        Args:
+            parent: The parent Tkinter widget.
+            center: Initial map center as LonLat.
+            zoom: Initial zoom level.
+            tile_size: Size of each map tile in pixels.
+            tile_loader: TileLoader instance to use for tiles.
+            **kwargs: Additional Canvas options.
+
+        """
         super().__init__(parent, **kwargs)
         self._tile_loader = tile_loader or DefaultTileLoader(
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -55,9 +72,9 @@ class MapWidget(tk.Canvas):
             window_size=Dimensions(self.winfo_reqwidth(), self.winfo_reqheight()),
         )
 
-        self._drag_start: Optional[ScreenPoint] = None
+        self._drag_start: ScreenPoint | None = None
 
-    def _setup_layers(self):
+    def _setup_layers(self) -> None:
         base_layer = TileLayer(
             tile_loader=self._tile_loader,
             tile_size=self._tile_size,
@@ -66,17 +83,21 @@ class MapWidget(tk.Canvas):
         )
         self._root_layer.add_layer(base_layer)
 
-    def add_layer(self, layer: Layer):
+    def add_layer(self, layer: Layer) -> None:
+        """Add a layer to the map widget."""
         self._root_layer.add_layer(layer)
 
-    def remove_layer(self, name: str):
+    def remove_layer(self, name: str) -> None:
+        """Remove a layer from the map widget by name."""
         self._root_layer.remove_layer(name)
 
-    def show_layer(self, name: str):
+    def show_layer(self, name: str) -> None:
+        """Show a layer by name and redraw the map."""
         self._root_layer.show_layer(name)
         self.redraw(flush=True)
 
-    def hide_layer(self, name: str):
+    def hide_layer(self, name: str) -> None:
+        """Hide a layer by name and redraw the map."""
         self._root_layer.hide_layer(name)
         self.redraw(flush=True)
 
@@ -95,7 +116,7 @@ class MapWidget(tk.Canvas):
         self.bind(
             "<Configure>",
             lambda event: self._viewport.update(
-                window_size=Dimensions(event.width, event.height)
+                window_size=Dimensions(event.width, event.height),
             ),
         )
 
@@ -128,8 +149,8 @@ class MapWidget(tk.Canvas):
             self._viewport.update(center=new_center)
             self._drag_start = ScreenPoint(event.x, event.y)
 
-    def _drag_end(self, event: tk.Event) -> None:
-        """Handle mouse release events to stop panning."""
+    def _drag_end(self, _event: tk.Event) -> None:
+        """Handle the end of a drag event (mouse release)."""
         self._drag_start = None
 
     def _setup_method_bindings(self) -> None:
@@ -147,7 +168,7 @@ class MapWidget(tk.Canvas):
 
         sp = ScreenPoint(event.x, event.y)
         self._event_manager.trigger_mouse_moved(
-            MouseMovedEvent(screen=sp, lonlat=self._viewport.screen_to_lonlat(sp))
+            MouseMovedEvent(screen=sp, lonlat=self._viewport.screen_to_lonlat(sp)),
         )
 
     def _mouse_zoom(self, event: tk.Event) -> None:
@@ -159,12 +180,12 @@ class MapWidget(tk.Canvas):
 
     def _mouse_zoom_linux(self, event: tk.Event) -> None:
         """Handle mouse wheel zoom events on Linux."""
-        if event.num == 4:
+        if event.num == MOUSEWHEEL_UP:
             self._viewport.zoom_in()
-        elif event.num == 5:
+        elif event.num == MOUSEWHEEL_DOWN:
             self._viewport.zoom_out()
 
-    def redraw(self, flush: bool = False) -> None:
+    def redraw(self, *, flush: bool = False) -> None:
         """Redraw all visible layers."""
         if flush:
             self.delete("all")

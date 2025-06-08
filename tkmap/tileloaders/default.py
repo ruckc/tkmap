@@ -1,7 +1,9 @@
+"""DefaultTileLoader for tkmap: manages tile loading, caching, and remote fetch."""
+
+import logging
 import tkinter as tk
 import urllib.parse
 from pathlib import Path
-from typing import Optional
 
 import requests
 
@@ -14,16 +16,28 @@ from .remote import RemoteTileLoader
 
 TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 
+logger = logging.getLogger(__name__)
+
 
 class DefaultTileLoader(UrlTileLoader):
+    """Default tile loader with memory, disk, and error caching."""
+
     _base_cache_dir: Path
 
     def __init__(
         self,
-        url: Optional[str] = TILE_URL,
+        url: str | None = TILE_URL,
         base_cache_dir: Path = Path(".tile_cache"),
-        requests_session: Optional[requests.Session] = None,
-    ):
+        requests_session: requests.Session | None = None,
+    ) -> None:
+        """Initialize the DefaultTileLoader.
+
+        Args:
+            url: Tile URL template.
+            base_cache_dir: Directory for tile cache.
+            requests_session: Optional requests session.
+
+        """
         self.base_cache_dir = base_cache_dir
 
         self.remote_loader = RemoteTileLoader(
@@ -46,6 +60,7 @@ class DefaultTileLoader(UrlTileLoader):
         y: int,
         callback: TileCallback,
     ) -> None:
+        """Fetch a tile asynchronously and call the callback with the result."""
         max_index = (1 << z) - 1
         if not (0 <= x <= max_index and 0 <= y <= max_index):
             callback(
@@ -58,16 +73,20 @@ class DefaultTileLoader(UrlTileLoader):
         self.tile_loader.get_tile_async(z, x, y, callback)
 
     def start_remote_fetch_queue_processing(
-        self, root: tk.Tk | tk.Toplevel, interval_ms: int = 100
+        self,
+        root: tk.Tk | tk.Toplevel,
+        interval_ms: int = 100,
     ) -> None:
-        self.remote_loader.start_fetch_queue_processing(root, interval_ms)
+        """Start the remote fetch queue processing loop."""
+        self.remote_loader.async_worker.start_processing(root, interval_ms)
 
-    def shutdown(self):
+    def shutdown(self) -> None:
+        """Shut down the remote fetch worker."""
         self.remote_loader.async_worker.shutdown()
 
     @property
     def base_cache_dir(self) -> Path:
-        """Get the directory where tiles are cached."""
+        """Return the directory where tiles are cached."""
         return self._base_cache_dir
 
     @base_cache_dir.setter
@@ -79,16 +98,20 @@ class DefaultTileLoader(UrlTileLoader):
 
     @property
     def cache_dir(self) -> Path:
-        """Get the current cache directory based on the tile URL."""
+        """Return the current cache directory based on the tile URL."""
         return self.base_cache_dir / self.cache_dir_key
 
     @property
     def cache_dir_key(self) -> str:
-        """Get the cache directory key based on the tile URL."""
+        """Return the cache directory key based on the tile URL."""
         try:
             return urllib.parse.urlparse(self.tile_url).netloc
         except ValueError:
-            print(f"Invalid tile URL {self.tile_url}, using 'unknown' as cache key.")
+            logger.log(
+                logging.ERROR,
+                "Invalid tile URL %s, using 'unknown' as cache key.",
+                self.tile_url,
+            )
             return "unknown"
 
     @property

@@ -1,5 +1,7 @@
+"""Viewport logic for tkmap: handles map window, zoom, and coordinate transforms."""
+
 import math
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from tkmap.events import MapWidgetEventManager
 from tkmap.model import Dimensions, LonLat, ScreenPoint, VisbileMapArea
@@ -8,15 +10,27 @@ from tkmap.model import Dimensions, LonLat, ScreenPoint, VisbileMapArea
 class Viewport:
     """A class representing the viewport of the map widget."""
 
+    # ruff: noqa: PLR0913
     def __init__(
         self,
         center: LonLat,
         zoom: int,
         window_size: Dimensions,
         tile_size: int = 256,
-        redraw: Optional[Callable[[], None]] = None,
-        event_manager: Optional[MapWidgetEventManager] = None,
-    ):
+        redraw: Callable[[], None] | None = None,
+        event_manager: MapWidgetEventManager | None = None,
+    ) -> None:
+        """Initialize a Viewport.
+
+        Args:
+            center: The center of the viewport as a LonLat.
+            zoom: The zoom level.
+            window_size: The window size in pixels.
+            tile_size: The size of each tile in pixels (default 256).
+            redraw: Optional callback to trigger a redraw.
+            event_manager: Optional event manager for viewport events.
+
+        """
         self._center = center
         self._zoom = zoom
         self._tile_size = tile_size
@@ -78,12 +92,12 @@ class Viewport:
 
     @property
     def visible_area(self) -> VisbileMapArea:
-        """
-        Calculate the visible area of the map based on the current viewport.
+        """Calculate the visible area of the map based on the current viewport.
+
         Uses Web Mercator math for latitude and longitude bounds.
         """
 
-        def pixel_y_to_lat(pixel_y, zoom, tile_size=256):
+        def pixel_y_to_lat(pixel_y: float, zoom: int, tile_size: int = 256) -> float:
             n = 2**zoom
             y = pixel_y / (tile_size * n)
             lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * y)))
@@ -120,9 +134,9 @@ class Viewport:
 
     def update(
         self,
-        center: Optional[LonLat] = None,
-        zoom: Optional[int] = None,
-        window_size: Optional[Dimensions] = None,
+        center: LonLat | None = None,
+        zoom: int | None = None,
+        window_size: Dimensions | None = None,
     ) -> None:
         """Update the viewport with new center, zoom, and window size."""
         if center:
@@ -137,13 +151,15 @@ class Viewport:
             self._redraw()
         if self._event_manager:
             self._event_manager.trigger_viewport_change(
-                center=self.center, zoom=self.zoom, screen=self.window_size
+                center=self.center,
+                zoom=self.zoom,
+                screen=self.window_size,
             )
 
     def screen_to_lonlat(self, screen: ScreenPoint) -> LonLat:
-        """
-        Convert a screen point (relative to the widget) to a LonLat using the current
-        viewport center, zoom, window size, and tile size.
+        """Convert a screen point (relative to the widget) to a LonLat.
+
+        Uses the current viewport center, zoom, window size, and tile size.
         """
         zoom = self.zoom
         tile_size = self._tile_size
@@ -158,3 +174,29 @@ class Viewport:
         lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * y)))
         lat = math.degrees(lat_rad)
         return LonLat(lon, lat)
+
+    def lonlat_to_screen(self, lon: float, lat: float) -> ScreenPoint:
+        """Convert longitude and latitude to screen (pixel) coordinates.
+
+        Uses the current viewport.
+        """
+        # Use the same math as in visible_area and screen_to_lonlat, but in reverse
+        zoom = self.zoom
+        tile_size = self._tile_size
+        n = 2.0**zoom
+        # Convert lon/lat to global pixel coordinates
+        center = self.center
+        window_size = self.window_size
+        center_px = center.to_pixel(zoom, tile_size)
+        pixel_x = int((lon + 180.0) / 360.0 * n * tile_size)
+        sin_lat = math.sin(lat * math.pi / 180)
+        pixel_y = int(
+            (0.5 - math.log((1 + sin_lat) / (1 - sin_lat)) / (4 * math.pi))
+            * n
+            * tile_size,
+        )
+        # Convert global pixel coordinates to screen coordinates
+        # relative to the viewport
+        screen_x = pixel_x - (center_px.x - window_size.width // 2)
+        screen_y = pixel_y - (center_px.y - window_size.height // 2)
+        return ScreenPoint(screen_x, screen_y)
