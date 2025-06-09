@@ -1,5 +1,7 @@
 # tkmap
 
+[![PyPI version](https://badge.fury.io/py/tkmap.svg)](https://badge.fury.io/py/tkmap)
+
 A Tkinter-based interactive map widget for Python, supporting OpenStreetMap and custom tile sources. Easily embed a map in your Tkinter GUI, handle user interaction, and respond to map events.
 
 ## Features
