@@ -64,7 +64,7 @@ class RemoteTileLoader(UrlTileLoader):
             url = self.tile_url.format(z=z, x=x, y=y)
             logger.log(
                 logging.DEBUG,
-                "[RemoteTileLoader]: Fetching tile %d/%d/%d from %s",
+                "Fetching tile %d/%d/%d from %s",
                 z,
                 x,
                 y,
@@ -75,10 +75,10 @@ class RemoteTileLoader(UrlTileLoader):
                 resp.raise_for_status()
                 data = resp.content
                 return Image.open(BytesIO(data)).convert("RGBA")
-            except (requests.RequestException, OSError, ValueError) as e:
+            except (requests.RequestException, OSError, ValueError, Exception) as e:
                 logger.log(
                     logging.ERROR,
-                    "RemoteTileLoader[]]: Error fetching tile %d/%d/%d from %s: %s",
+                    "Error fetching tile %d/%d/%d from %s: %s",
                     z,
                     x,
                     y,

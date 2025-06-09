@@ -1,18 +1,20 @@
 [project]
 name = "tkmap"
-version = "0.1.1"
-description = ""
-authors = [
-    {name = "Curtis Ruck",email = "curtis@users.github.com"}
-]
+version = "0.1.2"
+description = "A simple tkinter map widget"
+authors = [{ name = "Curtis Ruck" }]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 dependencies = [
-    "pillow (>=11.2.1,<12.0.0)",
-    "requests (>=2.32.3,<3.0.0)",
+    "pillow (>=11,<12.0.0)",
+    "requests (>=2.27.0,<3.0.0)",
     "geojson (>=3.2.0,<4.0.0)",
 ]
+license = { text = "Apache-2.0" }
 
+[project.urls]
+Repository = "https://github.com/ruckc/tkmap"
+Issues = "https://github.com/ruckc/tkmap/issues"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -25,5 +27,61 @@ pytest-xdist = "^3.7.0"
 platformdirs = "^4.3.8"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "C", "Q", "I","YTT","ANN","ASYNC","S","BLE","FBT","B","A","COM","C4","EM","EXE","FIX","FA","ISC","ICN","LOG","G","INP","PIE","T20","PYI","PT","RSE","RET","SLF","SIM","SLOT","TID","TD","TC","ARG","PTH","FLY","C90","NPY","PD","N","PERF","D","PGH","PL","PLE","PLR","PLW","UP","FURB","RUF","TRY"]
-ignore = ["W293", "D211","D213","COM812","D203"]
+select = [
+    "E",
+    "F",
+    "W",
+    "C",
+    "Q",
+    "I",
+    "YTT",
+    "ANN",
+    "ASYNC",
+    "S",
+    "BLE",
+    "FBT",
+    "B",
+    "A",
+    "COM",
+    "C4",
+    "EM",
+    "EXE",
+    "FIX",
+    "FA",
+    "ISC",
+    "ICN",
+    "LOG",
+    "G",
+    "INP",
+    "PIE",
+    "T20",
+    "PYI",
+    "PT",
+    "RSE",
+    "RET",
+    "SLF",
+    "SIM",
+    "SLOT",
+    "TID",
+    "TD",
+    "TC",
+    "ARG",
+    "PTH",
+    "FLY",
+    "C90",
+    "NPY",
+    "PD",
+    "N",
+    "PERF",
+    "D",
+    "PGH",
+    "PL",
+    "PLE",
+    "PLR",
+    "PLW",
+    "UP",
+    "FURB",
+    "RUF",
+    "TRY",
+]
+ignore = ["W293", "D211", "D213", "COM812", "D203"]

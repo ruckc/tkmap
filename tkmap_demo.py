@@ -32,7 +32,7 @@ def main() -> None:
     """
     tile_loader = DefaultTileLoader(
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-        base_cache_dir=Path(user_cache_dir("tkmap")) / "tilecache",
+        base_cache_dir=Path(user_cache_dir("tkmap")) / "tile_cache",
         requests_session=requests.Session(),
     )
 

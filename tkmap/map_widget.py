@@ -83,6 +83,11 @@ class MapWidget(tk.Canvas):
         )
         self._root_layer.add_layer(base_layer)
 
+    @property
+    def viewport(self) -> Viewport:
+        """Get the current viewport."""
+        return self._viewport
+
     def add_layer(self, layer: Layer) -> None:
         """Add a layer to the map widget."""
         self._root_layer.add_layer(layer)
